@@ -1,0 +1,107 @@
+=== Overview ===
+	8-bit data width
+	16-bit address width/64 KB RAM
+	256 IO Ports
+	3 Byte long instructions
+	little endian
+	3 drive spaces reserved for a maximum of 50.1MB
+
+=== Instructions ===
+0x00: NOP 	- No Operation
+0x01: HLT 	- Halt
+0x02: MW 	- Moves Word from a constant/register to a register
+0x03: SW 	- Store Word stores a the value from a register an address in memory specified by the H and L registers
+0x04: LW 	- Load Word Loads a word from memory into a register, address specified by a constant/H and L registers
+0x05: PUSH	- Push to stack immediate/register value to stack and decrease stack pointer
+0x06: POP	- Pop from stack into a register and increase stack pointer
+0x07: INB	- In Byte from one of the 256 I/O ports
+0x08: OUTB	- Out Byte from one of the 256 I/O ports
+0x09: ADD^	- Add 2 bytes together
+0x0A: ADC^ 	- Add 2 bytes together plus carry
+0x0B: SUB^	- Subtracts 2 bytes together
+0x0C: SBB^	- Subtracts 2 bytes together - borrow
+0x0D: NOR	- NORs together 2 bytes
+0x0E: OR	- ORs together 2 bytes
+0x0F: AND	- ANDs together 2 byte
+0x10: RSH	- Right shifts a byte
+0x11: JMP	- Jumps unconditionally to the given address
+0x12: JC	- Jumps if the Carry flag is on
+0x13: JNC	- Jumps if the Carry flag is off
+0x14: JZ	- Jumps if the Zero flag is on
+0x15: JNZ	- Jumps if the Zero flag is off
+0x16: LDA	- Loads 2 bytes into the H and L registers
+0x17: CLF^	- Clears the F register
+0x18: SIE	- sets the IE register to 1
+0x19: CIE	- clears IE register to 0
+
+^ these instructions load the flags register
+
+== Addressing Modes ==
+0x02: immediate mode (8 bits) and register mode
+0x03: indirect (H and L) and indexed (H and L + offset)
+0x04: direct (12 bits), indirect (H and L) and indexed (H and L + offset)
+0x05: indirect (SP register)
+0x06: indirect (SP register)
+0x07: direct (4 bits), indirect (specified register from RF) and indexed (specified register from RF + offset)
+0x08: direct (4 bits), indirect (specified register from RF) and indexed (specidied register from RF + offset)
+0x09: immediate (8 bits), register (register from RF)
+0x0A: immediate (8 bits), register (register from RF)
+0x0B: immediate (8 bits), register (register from RF)
+0x0C: immediate (8 bits), register (register from RF)
+0x0D: immediate (8 bits), register (register from RF)
+0x0E: immediate (8 bits), register (register from RF)
+0x0F: immediate (8 bits), register (register from RF)
+0x10: immediate (8 bits), register (register from RF)
+0x11: Direct (16 bits), Relative (16 bits)
+0x12: Direct (16 bits), Relative (16 bits)
+0x13: Direct (16 bits), Relative (16 bits)
+0x14: Direct (16 bits), Relative (16 bits)
+0x15: Direct (16 bits), Relative (16 bits)
+0x16: immediate (16 bits)
+
+=== Memory Map ===
+0x0000 - General Purpose ROM
+0x0FFF - General Purpose RAM
+0xEEFC - Interrupt Vector Table
+0xEEFF - I/O
+0xEFFF - Stack
+
+== IO Map ==
+0xEEFE - Disk 1
+0xEF06 - Disk 2
+0xEF0D - Disk 3
+
+== Disk IO Map ==
+do note that the memory addresses are based on the Disk 1 but are applicable to all 3 disks.
+0xEEFF - Command Register
+0xEF00 - Status Register
+0xEF01 - Data in register
+0xEF02 - Data out register
+0xEF03 - Sector Register
+0xEF04 - Address Register (L)
+0xEF05 - Address Register (H)
+
+= description =
+Command Register - used to issue commands to the disk
+Status Register - used by the disk to communicate it's status
+Data in register - For incoming data from the Drive
+Data out register - For outgoing data to the Drive
+Sector Register - Selects one of the potential 256 64KB sectors
+Address Register (L) - Used to select the bottom byte of the selected sector
+Address Register (H) - Used to select the top byte of the selected sector
+
+=== Registers ===
+R0 - R15: General purpose registers from the dual read register file. R0 being a zero register
+(H)igh: High index register for indexing memory, works in tandem with the (L)ow register
+(L)ow: Low index register for indexing memory, works in tandem with the (H)igh register
+F: flags register, stores the Carry and Zero flag
+IE: Interrupt Enable register stores if a maskable interrupt will be acknnowledged or not. 1 = masked, 0 = unmasked
+IS: Interrupt Source register stores the source of the interrupt buy I/O port ID
+PC: tracks current instruction
+SP: stack pointer. points to the top of the stack
+
+=== Interrupts ===
+when an interrupt occurs the interrupt register gets set, interrupting the computer, the corresponding handler handles it.
+If the interrupt is the maskable interrupt then the protocol for setting up the interrupt handling goes as follows:
+load the IS register into one of the 15 GP registers. check which I/O port the interrupt came from. figure out the protocol of the I/O port (USB, VGA, HDMI)
+Handle the interrupt by I/O protocol and device type (keyboard, mouse, etc)

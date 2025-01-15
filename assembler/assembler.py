@@ -1,0 +1,198 @@
+import constants
+
+def tokenise(line):
+    line = line.lower()
+    line = line.split(';')[0]
+    line = line.replace(",", "")
+    line = line.replace("#", "")
+    return line.strip().split()
+
+def assemble(lines):
+    symbol_table = {}
+    macros = {}
+    output = []
+    current_address = 0
+    macro_mode = False
+    macro_body = []
+    macro_args = []
+    current_macro_name = None
+
+    def get_addressing_mode(operand):
+        if operand.startswith('#'):
+            return 'immediate'
+        elif operand.startswith('r'):
+            return 'register'
+        else:
+            return 'direct'
+
+    def get_instruction_size(instruction, operands):
+        if instruction not in constants.INSTRUCTION_BYTES:
+            exit(f"Unknown instruction: {instruction}")
+
+        modes = constants.INSTRUCTION_BYTES[instruction]
+        if not operands:
+            if 'none' in modes:
+                return modes['none'], 'none'
+            else:
+                exit(f"{instruction} requires operands")
+
+        mode = get_addressing_mode(operands[0])
+        if mode not in modes:
+            exit(f"Unsupported addressing mode for {instruction}: {mode}")
+
+        return modes[mode], mode
+
+    def remove_base_identifiers(text):
+        text = text.replace("%", "")
+        text = text.replace("$", "")
+        return text
+
+    def find_base(text):
+        if text.isnumeric():
+            return 10
+        elif text.startswith("$"):
+            return 16
+        elif text.startswith("%"):
+            return 2
+
+    def process_directive(tokens, current_address):
+        nonlocal macro_mode, macro_body, current_macro_name, macro_args
+
+        if tokens[0] == ".equ":
+            # Define a
+            symbol_table[tokens[1]] = int(remove_base_identifiers(tokens[2]), find_base(tokens[2]))
+
+        elif tokens[0] == ".org":
+            # Set the current address
+            if tokens[1] in symbol_table:
+                current_address = symbol_table[tokens[1]]
+            else:
+                current_address = int(remove_base_identifiers(tokens[1]), 0)
+
+        elif tokens[0] == ".fill":
+            if len(tokens) != 3:
+                exit(".fill directive requires exactly two arguments: end address and fill value.")
+
+            end_address = int(remove_base_identifiers(tokens[1]), find_base(tokens[1])) + 1
+            fill_value = int(remove_base_identifiers(tokens[2]), find_base(tokens[2]))
+
+            while current_address < end_address:
+                output.append(fill_value & 0xFF)
+                current_address += 1
+
+        elif tokens[0] in [".byte", ".db"]:
+            # Insert byte values
+            for value in tokens[1:]:
+                output.append(int(remove_base_identifiers(value), find_base(value)))
+                current_address += 1
+
+        elif tokens[0] in [".word", ".dw"]:
+            # Insert word values (16-bit)
+            for value in tokens[1:]:
+                word_value = int(remove_base_identifiers(value), find_base(value))
+                thing = word_value.to_bytes(2, byteorder='little')
+                output.extend([word_value & 0xFF, (word_value >> 8) & 0xFF])
+                current_address += 2
+
+        elif tokens[0] == ".macro":
+            # Define a macro
+
+            macro_mode = True
+            current_macro_name = tokens[1]
+            macro_args = tokens[2:]
+
+        elif tokens[0] == ".endm":
+            # End macro definition
+            macros[current_macro_name] = (macro_args, macro_body)
+            macro_mode = False
+            macro_body = []
+            macro_args = []
+            current_macro_name = None
+
+        return current_address
+
+    def expand_macro(macro_name, macro_params):
+        # Expand a macro with its arguments
+        args, body = macros[macro_name]
+        arg_map = dict(zip(args, macro_params))
+        for line in body:
+            for key, value in arg_map.items():
+                line = line.replace(key, value)
+            process_line(line)
+
+    def process_instruction(instruction, operands):
+        opcode = constants.INSTRUCTION_SET[instruction]
+
+        if instruction in ['nop', 'hlt']:
+            output.append('nop')
+            return 1
+
+        elif operands[0].startswith("#"): # immediate addressing
+            value = int(remove_base_identifiers(operands[0][1:]), find_base(operands[0][1:]))
+            output.extend([opcode, value & 0xFF])
+            return 2
+
+    def process_line(line):
+        nonlocal current_address, macro_mode, macro_body
+        tokens = tokenise(line)
+
+        if macro_mode:
+            # Collect macro body lines
+            if tokens[0].startswith("."):
+                current_address = process_directive(tokens, current_address)
+                return
+            macro_body.append(line)
+            return
+
+        if not tokens or tokens[0].startswith(";"):
+            # Skip empty lines or comments
+            return
+
+        if tokens[0].startswith("."):
+            # Process directives
+            current_address = process_directive(tokens, current_address)
+
+        elif tokens[0] in macros:
+            # Expand macros
+            expand_macro(tokens[0], tokens[1:])
+
+        elif tokens[0].endswith(":"):
+            # Process labels
+            label = tokens[0][:-1]
+            symbol_table[label] = current_address
+
+        else:
+            # Process instructions (placeholder implementation)
+            instruction = tokens[0]
+            operands = tokens[1:]
+
+            address, mode = get_instruction_size(instruction, operands)
+
+            current_address += address
+
+    for line in lines:
+        process_line(line)
+
+    return output, symbol_table
+
+def read_file(filename):
+    output = []
+    with open(filename, 'r') as f:
+        output.extend(f.readlines())
+    return output
+
+def write_file(filename, content, mode):
+    with open(filename, mode) as f:
+        for number in content:
+            if number > 255:
+                continue
+            f.write(number.to_bytes(1, byteorder='big'))
+
+assembly_code = read_file("test.as")
+
+output, symbol_table = assemble(assembly_code)
+print("Output:", output)
+print("Symbol Table:", symbol_table)
+
+write_file("output.bin", output, mode="wb")
+
