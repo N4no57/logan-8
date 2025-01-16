@@ -1,5 +1,16 @@
 from time import sleep
 
+def read(filename, mode):
+    machine_code = None
+    with open(filename, mode) as f:
+        machine_code = f.read()
+
+    if mode == "rb":
+        int_machine_code = list(machine_code)
+        return int_machine_code
+
+    return machine_code
+
 class CPU:
     def __init__(self, Hz):
         self.registers = {
@@ -45,7 +56,7 @@ class CPU:
     def read_byte(self, address):
         return self.memory[address]
 
-    def write_byte(self, address: int, value):
+    def write_byte(self, address: int, value: int):
         if address > 0xFFE:
             self.memory[address] = value
 
@@ -80,7 +91,7 @@ class CPU:
                 operand = self.fetch()
                 register1 = operand[:4]
                 register2 = operand[4:]
-                self.registers[register1] = self.registers[register2]
+                self.registers[register2] = self.registers[register1]
             else:
                 print("uh oh")
                 return False
@@ -92,16 +103,24 @@ class CPU:
                 register = self.fetch()[:4]
                 self.write_byte(address, self.registers[register])
             elif operating_mode == "01": # indirect
+                address_low = self.fetch()
+                address_high = self.fetch()
                 register = self.fetch()[:4]
-                address = int(str(self.H) + str(self.L), base=2)
+                address = int(address_high + address_low, base=2)
+                address_low = format(self.read_byte(address), '08b')
+                address_high = format(self.read_byte(address + 1), '08b')
+                address = int(address_high + address_low, base=2)
                 self.write_byte(address, self.registers[register])
-            elif operating_mode == "10": # indexed
-                register = command[8:12]
-                address = int(str(self.H) + str(self.L), base=2) + int(command[16:24], base=2)
-                self.write_byte(address, self.registers[register])
-            else:
-                print("uh oh")
-                return False
+            elif operating_mode == "10": # register indirect
+                #register = self.fetch()[:4]
+                #address = int(str(self.H) + str(self.L), base=2)
+                #self.write_byte(address, self.registers[register])
+                pass
+            elif operating_mode == "11": # indexed
+                # address = int(str(self.H) + str(self.L), base=2) + int(self.fetch(), base=2)
+                # register = self.fetch()[:4]
+                # self.write_byte(address, self.registers[register])
+                pass
         elif opcode == "000100": # LW
             if operating_mode == "00": # direct
                 address_low = self.fetch()
@@ -110,10 +129,17 @@ class CPU:
                 register = self.fetch()[:4]
                 self.registers[register] = self.read_byte(address)
             elif operating_mode == "01": # indirect
-                register = command[8:12]
-                address = int(str(self.H) + str(self.L), base=2)
+                address_low = self.fetch()
+                address_high = self.fetch()
+                register = self.fetch()[:4]
+                address = int(address_high + address_low, base=2)
+                address_low = format(self.read_byte(address), '08b')
+                address_high = format(self.read_byte(address + 1), '08b')
+                address = int(address_high + address_low, base=2)
                 self.registers[register] = self.read_byte(address)
-            elif operating_mode == "10": # indexed
+            elif operating_mode == "10": # register indirect
+                pass
+            elif operating_mode == "11": # indexed
                 register = command[8:12]
                 address = int(str(self.H) + str(self.L), base=2) + int(command[16:24], base=2)
                 self.registers[register] = self.read_byte(address)
@@ -142,17 +168,19 @@ class CPU:
         elif opcode == "010000": # RSH
             pass
         elif opcode == "010001": # JMP
-            address = command[8:24]
-            self.PC = int(address, base=2)
+            address_low = self.fetch()
+            address_high = self.fetch()
+            address = int(address_high + address_low, base=2)
+            self.PC = address
         elif opcode == "010010": pass # JC
         elif opcode == "010011": pass # JNC
         elif opcode == "010100": pass # JZ
         elif opcode == "010101": pass # JNZ
         elif opcode == "010110": # LDA
-            LowByte = command[8:16]
-            HighByte = command[16:24]
-            self.H = HighByte
-            self.L = LowByte
+            LowByte = self.fetch
+            HighByte = self.fetch
+            self.H = int(HighByte, base=2)
+            self.L = int(LowByte, base=2)
         elif opcode == "010111": pass # CLF
         elif opcode == "011000": pass # SIE
         elif opcode == "011001": pass # CIE
@@ -173,11 +201,9 @@ class CPU:
         for i, byte in enumerate(bytes):
             self.memory[i] = byte
 
-cpu = CPU(1/10)
-cpu.load_program([0b00001000, 0b00000011, 0b00010000,               # MW immediate
-                  0b00001001, 0b00110001,                           # MW register
-                  0b00001100, 0b00000000, 0b00010000, 0b00010000,   # SW direct
-                  0b00010000, 0b00000000, 0b00010000, 0b11000000,   # LW direct
-                  0b00000100,                                       # HLT
-                ])
+cpu = CPU(1/100000)
+program = read("../assembler/output.bin", "rb")
+cpu.load_program(program)
 cpu.run()
+
+print(cpu.memory[0x1007])

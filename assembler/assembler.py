@@ -4,7 +4,6 @@ def tokenise(line):
     line = line.lower()
     line = line.split(';')[0]
     line = line.replace(",", "")
-    line = line.replace("#", "")
     return line.strip().split()
 
 def assemble(lines):
@@ -24,6 +23,10 @@ def assemble(lines):
             return 'register'
         else:
             return 'direct'
+
+    def remove_addressing_identifier(operand):
+        if operand.startswith('#'):
+            return operand.replace('#', '')
 
     def get_instruction_size(instruction, operands):
         if instruction not in constants.INSTRUCTION_BYTES:
@@ -67,16 +70,16 @@ def assemble(lines):
             if tokens[1] in symbol_table:
                 current_address = symbol_table[tokens[1]]
             else:
-                current_address = int(remove_base_identifiers(tokens[1]), 0)
+                current_address = int(remove_base_identifiers(tokens[1]), find_base(tokens[1]))
 
         elif tokens[0] == ".fill":
             if len(tokens) != 3:
                 exit(".fill directive requires exactly two arguments: end address and fill value.")
 
-            end_address = int(remove_base_identifiers(tokens[1]), find_base(tokens[1])) + 1
+            end_address = int(remove_base_identifiers(tokens[1]), find_base(tokens[1]))
             fill_value = int(remove_base_identifiers(tokens[2]), find_base(tokens[2]))
 
-            while current_address < end_address:
+            while current_address <= end_address:
                 output.append(fill_value & 0xFF)
                 current_address += 1
 
@@ -120,17 +123,32 @@ def assemble(lines):
                 line = line.replace(key, value)
             process_line(line)
 
-    def process_instruction(instruction, operands):
-        opcode = constants.INSTRUCTION_SET[instruction]
-
+    def parse_operands(instruction, operands, addressing_mode):
+        output = []
         if instruction in ['nop', 'hlt']:
-            output.append('nop')
-            return 1
+            return None
 
-        elif operands[0].startswith("#"): # immediate addressing
-            value = int(remove_base_identifiers(operands[0][1:]), find_base(operands[0][1:]))
-            output.extend([opcode, value & 0xFF])
-            return 2
+        if instruction == "mw":
+            if addressing_mode == "immediate": # from immediate to register
+                output.append(int(remove_addressing_identifier(remove_base_identifiers(operands[0])),
+                                  find_base(remove_addressing_identifier(operands[0]))))
+                output.append(constants.REGISTERS[operands[1]] << 4)
+            elif addressing_mode == "register": # from r1 to r2
+                register1 = constants.REGISTERS[operands[0]] << 4
+                register2 = constants.REGISTERS[operands[1]]
+                output.append(register1 + register2)
+        elif instruction == "sw":
+            if addressing_mode == "direct":
+                output.append(int(remove_base_identifiers(operands[0]), find_base(operands[0])) & 0xFF)
+                output.append(int(remove_base_identifiers(operands[0]), find_base(operands[0])) >> 8)
+                output.append(constants.REGISTERS[operands[1]] << 4)
+        elif instruction == "lw":
+            if addressing_mode == "direct":
+                output.append(int(remove_base_identifiers(operands[0]), find_base(operands[0])) & 0xFF)
+                output.append(int(remove_base_identifiers(operands[0]), find_base(operands[0])) >> 8)
+                output.append(constants.REGISTERS[operands[1]] << 4)
+
+        return output
 
     def process_line(line):
         nonlocal current_address, macro_mode, macro_body
@@ -167,6 +185,16 @@ def assemble(lines):
             operands = tokens[1:]
 
             address, mode = get_instruction_size(instruction, operands)
+
+            opcode = int(format(constants.INSTRUCTION_SET[instruction], '06b') +
+                         format(constants.ADDRESSING_MODE_BITS[instruction][mode], '02b'),
+                         base=2)
+
+            output.append(opcode)
+
+            operand_bytes = parse_operands(instruction, operands, mode)
+            if operand_bytes:
+                output.extend(operand_bytes)
 
             current_address += address
 
