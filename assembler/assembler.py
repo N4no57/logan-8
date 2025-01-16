@@ -62,8 +62,8 @@ def assemble(lines):
         nonlocal macro_mode, macro_body, current_macro_name, macro_args
 
         if tokens[0] == ".equ":
-            # Define a
-            symbol_table[tokens[1]] = int(remove_base_identifiers(tokens[2]), find_base(tokens[2]))
+            # handled by first pass
+            pass
 
         elif tokens[0] == ".org":
             # Set the current address
@@ -93,7 +93,6 @@ def assemble(lines):
             # Insert word values (16-bit)
             for value in tokens[1:]:
                 word_value = int(remove_base_identifiers(value), find_base(value))
-                thing = word_value.to_bytes(2, byteorder='little')
                 output.extend([word_value & 0xFF, (word_value >> 8) & 0xFF])
                 current_address += 2
 
@@ -117,6 +116,38 @@ def assemble(lines):
 
         return current_address
 
+    def pass_directives(tokens, current_address):
+
+        if tokens[0] == ".equ":
+            symbol_table[tokens[1]] = int(remove_base_identifiers(tokens[2]), find_base(tokens[2]))
+
+        elif tokens[0] == ".org":
+            if tokens[1] in symbol_table:
+                current_address = symbol_table[tokens[1]]
+            else:
+                current_address = int(remove_base_identifiers(tokens[1]), find_base(tokens[1]))
+
+        elif tokens[0] == ".fill":
+            end_address = int(remove_base_identifiers(tokens[1]), find_base(tokens[1]))
+            while current_address <= end_address:
+                current_address += 1
+
+        elif tokens[0] in [".byte", ".db"]:
+            for _ in tokens[1:]:
+                current_address += 1
+
+        elif tokens[0] in [".word", ".dw"]:
+            for _ in tokens[1:]:
+                current_address += 2
+
+        elif tokens[0] == ".macro":
+            pass
+
+        elif tokens[0] == ".endm":
+            pass
+
+        return current_address
+
     def expand_macro(macro_name, macro_params):
         # Expand a macro with its arguments
         args, body = macros[macro_name]
@@ -125,6 +156,14 @@ def assemble(lines):
             for key, value in arg_map.items():
                 line = line.replace(key, value)
             process_line(line)
+
+    def pass_macro_expansion(macro_name, macro_params):
+        args, body = macros[macro_name]
+        arg_map = dict(zip(args, macro_params))
+        for line in body:
+            for key, value in arg_map.items():
+                line = line.replace(key, value)
+            first_pass(line)
 
     def parse_operands(instruction, operands, addressing_mode):
         output = []
@@ -159,7 +198,7 @@ def assemble(lines):
             if addressing_mode == "direct":
                 if operands[0] in symbol_table:
                     output.append(symbol_table[operands[0]] & 0xFF)
-                    output.append(symbol_table[operands[0] >> 8])
+                    output.append(symbol_table[operands[0]] >> 8)
                 else:
                     pass
 
@@ -167,6 +206,32 @@ def assemble(lines):
             exit(f"Unknown instruction: '{instruction}'")
 
         return output
+
+    def first_pass(line):
+        nonlocal current_address, macro_body
+        tokens = tokenise(line)
+
+        if not tokens or tokens[0].startswith(";"):
+            # Skip empty lines or comments
+            return
+
+        if tokens[0].endswith(":"):
+            label = tokens[0][:-1]
+            symbol_table[label] = current_address
+
+        elif tokens[0].startswith("."):
+            current_address = pass_directives(tokens, current_address)
+
+        elif tokens[0] in macros:
+            pass_macro_expansion(tokens[0], tokens[1:])
+
+        else:
+            instruction = tokens[0]
+            operands = tokens[1:]
+
+            address, _ = get_instruction_size(instruction, operands)
+
+            current_address += address
 
     def process_line(line):
         nonlocal current_address, macro_mode, macro_body
@@ -188,17 +253,15 @@ def assemble(lines):
             # Process directives
             current_address = process_directive(tokens, current_address)
 
+        elif tokens[0].endswith(':'):
+            # handled in first pass
+            pass
+
         elif tokens[0] in macros:
             # Expand macros
             expand_macro(tokens[0], tokens[1:])
 
-        elif tokens[0].endswith(":"):
-            # Process labels
-            label = tokens[0][:-1]
-            symbol_table[label] = current_address
-
         else:
-            # Process instructions (placeholder implementation)
             instruction = tokens[0]
             operands = tokens[1:]
 
@@ -215,6 +278,11 @@ def assemble(lines):
                 output.extend(operand_bytes)
 
             current_address += address
+
+    for line in lines:
+        first_pass(line)
+
+    current_address = 0
 
     for line in lines:
         process_line(line)
@@ -237,8 +305,8 @@ def write_file(filename, content, mode):
 assembly_code = read_file("test.as")
 
 output, symbol_table = assemble(assembly_code)
-print("Output:", output)
-print("Symbol Table:", symbol_table)
-
+#print("Output:", output)
+#print("Symbol Table:", symbol_table)
+output.pop()
 write_file("output.bin", output, mode="wb")
 

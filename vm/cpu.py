@@ -205,5 +205,3 @@ cpu = CPU(1/100000)
 program = read("../assembler/output.bin", "rb")
 cpu.load_program(program)
 cpu.run()
-
-print(cpu.memory[0x1007])

@@ -1,5 +1,5 @@
 .equ start, $0000
-.equ write_location, $1007
+.equ write_location, $1100
 .org start
 
 start_label:
@@ -11,7 +11,7 @@ start_label:
 jump_back:
     hlt
 
-.fill $0FFF, $00
+.fill $04FF, $00
 
 .org $0500
 
@@ -19,6 +19,8 @@ jump_to:
     mw #$F0, r15
     sw write_location, r15
     jmp jump_back
+
+.fill $0FFF, $00
 
 .org $1000
 
