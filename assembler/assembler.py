@@ -112,6 +112,9 @@ def assemble(lines):
             macro_args = []
             current_macro_name = None
 
+        else:
+            exit(f"Unknown direction: '{tokens[0]}'")
+
         return current_address
 
     def expand_macro(macro_name, macro_params):
@@ -139,14 +142,29 @@ def assemble(lines):
                 output.append(register1 + register2)
         elif instruction == "sw":
             if addressing_mode == "direct":
-                output.append(int(remove_base_identifiers(operands[0]), find_base(operands[0])) & 0xFF)
-                output.append(int(remove_base_identifiers(operands[0]), find_base(operands[0])) >> 8)
-                output.append(constants.REGISTERS[operands[1]] << 4)
+                if operands[0] not in symbol_table:
+                    output.append(int(remove_base_identifiers(operands[0]), find_base(operands[0])) & 0xFF)
+                    output.append(int(remove_base_identifiers(operands[0]), find_base(operands[0])) >> 8)
+                    output.append(constants.REGISTERS[operands[1]] << 4)
+                else:
+                    output.append(symbol_table[operands[0]] & 0xFF)
+                    output.append(symbol_table[operands[0]] >> 8)
+                    output.append(constants.REGISTERS[operands[1]] << 4)
         elif instruction == "lw":
             if addressing_mode == "direct":
                 output.append(int(remove_base_identifiers(operands[0]), find_base(operands[0])) & 0xFF)
                 output.append(int(remove_base_identifiers(operands[0]), find_base(operands[0])) >> 8)
                 output.append(constants.REGISTERS[operands[1]] << 4)
+        elif instruction == "jmp":
+            if addressing_mode == "direct":
+                if operands[0] in symbol_table:
+                    output.append(symbol_table[operands[0]] & 0xFF)
+                    output.append(symbol_table[operands[0] >> 8])
+                else:
+                    pass
+
+        else:
+            exit(f"Unknown instruction: '{instruction}'")
 
         return output
 
