@@ -228,7 +228,7 @@ def assemble(lines):
             current_address = pass_directives(tokens, current_address)
 
         elif tokens[0] in macros:
-            pass_macro_expansion(tokens[0], tokens[1:])
+            pass_macro_expansion(tokens[0], tokens[1:x])
 
         else:
             instruction = tokens[0]
@@ -305,10 +305,13 @@ def read_file(filename):
 
 def write_file(filename, content, mode):
     with open(filename, mode) as f:
-        for number in content:
-            if number > 255:
-                continue
-            f.write(number.to_bytes(1, byteorder='big'))
+        if mode == "wb":
+            for number in content:
+                f.write(number.to_bytes(1, byteorder='big'))
+        elif mode == "w":
+            for number in content:
+                f.write(" ")
+                f.write(format(number, "08b"))
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
@@ -316,7 +319,7 @@ if __name__ == '__main__':
 
     output_filename = "output.bin"
     if len(sys.argv) == 3:
-        output_filename = sys.argv[3]
+        output_filename = sys.argv[2]
 
     assembly_code = read_file(sys.argv[1])
 
@@ -325,5 +328,5 @@ if __name__ == '__main__':
     while len(output) > 65535:
         output.pop()
 
-    write_file(output_filename, output, mode="wb")
+    write_file(output_filename, output, mode="w")
 
