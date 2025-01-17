@@ -92,9 +92,6 @@ class CPU:
                 register1 = operand[:4]
                 register2 = operand[4:]
                 self.registers[register2] = self.registers[register1]
-            else:
-                print("uh oh")
-                return False
         elif opcode == "000011": # SW
             if addressing_mode == "00": # direct
                 address_low = self.fetch()
@@ -196,7 +193,7 @@ class CPU:
                 break
             sleep(self.Hz)
 
-        print("instructions:", instruction)
+        #print("instructions:", instruction)
 
     def load_program(self, bytes: list):
         for i, byte in enumerate(bytes):

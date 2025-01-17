@@ -24,6 +24,10 @@ def assemble(lines):
             return 'immediate'
         elif operand.startswith('r'):
             return 'register'
+        elif operand.startswith('(') and operand.endswith(')'):
+            return 'indirect'
+        elif operand.startswith('[') and operand.endswith(']'):
+            return 'register_indirect'
         else:
             return 'direct'
 
