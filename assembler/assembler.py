@@ -1,3 +1,5 @@
+import sys
+
 import constants
 
 def tokenise(line):
@@ -15,6 +17,7 @@ def assemble(lines):
     macro_body = []
     macro_args = []
     current_macro_name = None
+    line_number = 0
 
     def get_addressing_mode(operand):
         if operand.startswith('#'):
@@ -29,19 +32,20 @@ def assemble(lines):
             return operand.replace('#', '')
 
     def get_instruction_size(instruction, operands):
+        nonlocal line_number
         if instruction not in constants.INSTRUCTION_BYTES:
-            exit(f"Unknown instruction: {instruction}")
+            exit(f"Unknown instruction '{instruction}'\nline {line_number}")
 
         modes = constants.INSTRUCTION_BYTES[instruction]
         if not operands:
             if 'none' in modes:
                 return modes['none'], 'none'
             else:
-                exit(f"{instruction} requires operands")
+                exit(f"'{instruction}' requires operands\nline {line_number}")
 
         mode = get_addressing_mode(operands[0])
         if mode not in modes:
-            exit(f"Unsupported addressing mode for {instruction}: {mode}")
+            exit(f"Unsupported addressing mode for {instruction}: {mode}\nline {line_number}")
 
         return modes[mode], mode
 
@@ -74,7 +78,7 @@ def assemble(lines):
 
         elif tokens[0] == ".fill":
             if len(tokens) != 3:
-                exit(".fill directive requires exactly two arguments: end address and fill value.")
+                exit(f".fill directive requires exactly two arguments: end address and fill value.\nline {line_number}")
 
             end_address = int(remove_base_identifiers(tokens[1]), find_base(tokens[1]))
             fill_value = int(remove_base_identifiers(tokens[2]), find_base(tokens[2]))
@@ -112,7 +116,7 @@ def assemble(lines):
             current_macro_name = None
 
         else:
-            exit(f"Unknown direction: '{tokens[0]}'")
+            exit(f"Unknown directive: '{tokens[0]}'\nline {line_number}")
 
         return current_address
 
@@ -203,7 +207,7 @@ def assemble(lines):
                     pass
 
         else:
-            exit(f"Unknown instruction: '{instruction}'")
+            exit(f"Unknown instruction: '{instruction}'\nline {line_number}")
 
         return output
 
@@ -281,11 +285,14 @@ def assemble(lines):
             current_address += address
 
     for line in lines:
+        line_number += 1
         first_pass(line)
 
+    line_number = 0
     current_address = 0
 
     for line in lines:
+        line_number += 1
         process_line(line)
 
     return output, symbol_table
@@ -303,11 +310,20 @@ def write_file(filename, content, mode):
                 continue
             f.write(number.to_bytes(1, byteorder='big'))
 
-assembly_code = read_file("test.as")
+if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        exit(f"Usage: assembler.py <filename> [output]")
 
-output, symbol_table = assemble(assembly_code)
-#print("Output:", output)
-#print("Symbol Table:", symbol_table)
-output.pop()
-write_file("output.bin", output, mode="wb")
+    output_filename = "output.bin"
+    if len(sys.argv) == 3:
+        output_filename = sys.argv[3]
+
+    assembly_code = read_file(sys.argv[1])
+
+    output, symbol_table = assemble(assembly_code)
+
+    while len(output) > 65535:
+        output.pop()
+
+    write_file(output_filename, output, mode="wb")
 

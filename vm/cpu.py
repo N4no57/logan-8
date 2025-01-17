@@ -191,11 +191,12 @@ class CPU:
         while True:
             self.registers["0000"] = 0x0
             command = self.fetch()
+            instruction += 1
             if not self.execute(command):
                 break
-            instruction += 1
-            #print(f"instruction {instruction} ran")
             sleep(self.Hz)
+
+        print("instructions:", instruction)
 
     def load_program(self, bytes: list):
         for i, byte in enumerate(bytes):
