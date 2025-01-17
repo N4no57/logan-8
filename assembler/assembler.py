@@ -207,6 +207,7 @@ def assemble(lines):
 
         return output
 
+
     def first_pass(line):
         nonlocal current_address, macro_body
         tokens = tokenise(line)
