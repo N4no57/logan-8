@@ -27,7 +27,8 @@ def assemble(lines):
         elif operand.startswith('(') and operand.endswith(')'):
             return 'indirect'
         elif operand.startswith('[') and operand.endswith(']'):
-            return 'register_indirect'
+            if "+" in operand:
+                pass
         else:
             return 'direct'
 

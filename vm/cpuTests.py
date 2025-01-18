@@ -30,7 +30,8 @@ class TestInstructions(unittest.TestCase):
 
         self.assertEqual(cpu.memory[0x1000], 0b00010111)
 
-    def test_SW_
+    def test_SW_Indirect_StoresValueFromRegister(self):
+        pass
 
 
 if __name__ == '__main__':
