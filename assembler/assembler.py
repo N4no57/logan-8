@@ -19,16 +19,18 @@ def assemble(lines):
     current_macro_name = None
     line_number = 0
 
-    def get_addressing_mode(operand):
-        if operand.startswith('#'):
+    def get_addressing_mode(operands):
+        if operands[0].startswith('#'):
             return 'immediate'
-        elif operand.startswith('r'):
+        elif operands[0].startswith('r'):
             return 'register'
-        elif operand.startswith('(') and operand.endswith(')'):
+        elif operands[0].startswith('('):
             return 'indirect'
-        elif operand.startswith('[') and operand.endswith(']'):
-            if "+" in operand:
-                pass
+        elif operands[0].startswith('['):
+            if "+" in operands:
+                return 'indexed'
+            else:
+                return 'register_indirect'
         else:
             return 'direct'
 
@@ -48,7 +50,7 @@ def assemble(lines):
             else:
                 exit(f"'{instruction}' requires operands\nline {line_number}")
 
-        mode = get_addressing_mode(operands[0])
+        mode = get_addressing_mode(operands)
         if mode not in modes:
             exit(f"Unsupported addressing mode for {instruction}: {mode}\nline {line_number}")
 
@@ -174,6 +176,25 @@ def assemble(lines):
                 line = line.replace(key, value)
             first_pass(line)
 
+    def data_move_stuff(operands: list, addressing_mode):
+        output = []
+        if addressing_mode == "register_indirect":
+            output.append(constants.REGISTERS[operands[1]] << 4)
+
+        elif addressing_mode == "direct" or "indirect":
+            if addressing_mode == "indirect":
+                operands[0] = operands[0].replace("(", "")
+                operands[0] = operands[0].replace(")", "")
+            if operands[0] not in symbol_table:
+                output.append(int(remove_base_identifiers(operands[0]), find_base(operands[0])) & 0xFF)
+                output.append(int(remove_base_identifiers(operands[0]), find_base(operands[0])) >> 8)
+                output.append(constants.REGISTERS[operands[1]] << 4)
+            else:
+                output.append(symbol_table[operands[0]] & 0xFF)
+                output.append(symbol_table[operands[0]] >> 8)
+                output.append(constants.REGISTERS[operands[1]] << 4)
+        return output
+
     def parse_operands(instruction, operands, addressing_mode):
         output = []
         if instruction in ['nop', 'hlt']:
@@ -189,20 +210,9 @@ def assemble(lines):
                 register2 = constants.REGISTERS[operands[1]]
                 output.append(register1 + register2)
         elif instruction == "sw":
-            if addressing_mode == "direct":
-                if operands[0] not in symbol_table:
-                    output.append(int(remove_base_identifiers(operands[0]), find_base(operands[0])) & 0xFF)
-                    output.append(int(remove_base_identifiers(operands[0]), find_base(operands[0])) >> 8)
-                    output.append(constants.REGISTERS[operands[1]] << 4)
-                else:
-                    output.append(symbol_table[operands[0]] & 0xFF)
-                    output.append(symbol_table[operands[0]] >> 8)
-                    output.append(constants.REGISTERS[operands[1]] << 4)
+            output.extend(data_move_stuff(operands, addressing_mode))
         elif instruction == "lw":
-            if addressing_mode == "direct":
-                output.append(int(remove_base_identifiers(operands[0]), find_base(operands[0])) & 0xFF)
-                output.append(int(remove_base_identifiers(operands[0]), find_base(operands[0])) >> 8)
-                output.append(constants.REGISTERS[operands[1]] << 4)
+            output.extend(data_move_stuff(operands, addressing_mode))
         elif instruction == "jmp":
             if addressing_mode == "direct":
                 if operands[0] in symbol_table:
@@ -210,6 +220,16 @@ def assemble(lines):
                     output.append(symbol_table[operands[0]] >> 8)
                 else:
                     pass
+        elif instruction == "lda": # load address
+            if addressing_mode == "immediate":
+                if operands[0] in symbol_table:
+                    output.append(symbol_table[operands[0]] & 0xFF)
+                    output.append(symbol_table[operands[0]] >> 8)
+                else:
+                    output.append(int(remove_addressing_identifier(remove_base_identifiers(operands[0])),
+                    find_base(remove_addressing_identifier(operands[0]))) & 0xFF)
+                    output.append(int(remove_addressing_identifier(remove_base_identifiers(operands[0])),
+                                      find_base(remove_addressing_identifier(operands[0]))) >> 8)
 
         else:
             exit(f"Unknown instruction: '{instruction}'\nline {line_number}")
@@ -333,5 +353,5 @@ if __name__ == '__main__':
     while len(output) > 65535:
         output.pop()
 
-    write_file(output_filename, output, mode="w")
+    write_file(output_filename, output, mode="wb")
 

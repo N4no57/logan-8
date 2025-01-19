@@ -50,8 +50,8 @@ INSTRUCTION_BYTES = {
     'nop'   : {'none': 1},
     'hlt'   : {'none': 1},
     'mw'    : {'immediate': 3, 'register': 2},
-    'sw'    : {'direct': 4, 'indirect': 4, 'register_indirect': 2, 'indexed': 3},
-    'lw'    : {'direct': 4, 'indirect': 4, 'register_indirect': 2, 'indexed': 3},
+    'sw'    : {'direct': 4, 'indirect': 4, 'register_indirect': 2, 'indexed': 2},
+    'lw'    : {'direct': 4, 'indirect': 4, 'register_indirect': 2, 'indexed': 2},
     'push'  : {},
     'pop'   : {},
     'inb'   : {},
@@ -69,7 +69,7 @@ INSTRUCTION_BYTES = {
     'jnc'   : {},
     'jz'    : {},
     'jnz'   : {},
-    'lda'   : {},
+    'lda'   : {'immediate': 3},
     'clf'   : {},
     'sie'   : {},
     'cie'   : {}
@@ -98,7 +98,7 @@ ADDRESSING_MODE_BITS = {
     'jnc'   : {},
     'jz'    : {},
     'jnz'   : {},
-    'lda'   : {},
+    'lda'   : {'immediate': 0b00},
     'clf'   : {},
     'sie'   : {},
     'cie'   : {}

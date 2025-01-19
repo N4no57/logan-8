@@ -60,7 +60,7 @@ class CPU:
         if address > 0xFFE:
             self.memory[address] = value
 
-    def fetch(self):
+    def fetch(self) -> str:
         return_val = self.read_byte(self.PC)
         self.PC += 1
         return str(format(return_val, '08b'))
@@ -109,10 +109,9 @@ class CPU:
                 address = int(address_high + address_low, base=2)
                 self.write_byte(address, self.registers[register])
             elif addressing_mode == "10": # register indirect
-                #register = self.fetch()[:4]
-                #address = int(str(self.H) + str(self.L), base=2)
-                #self.write_byte(address, self.registers[register])
-                pass
+                register = self.fetch()[:4]
+                address = int(format(self.H, "08b") + format(self.L, "08b"), base=2)
+                self.write_byte(address, self.registers[register])
             elif addressing_mode == "11": # indexed
                 # address = int(str(self.H) + str(self.L), base=2) + int(self.fetch(), base=2)
                 # register = self.fetch()[:4]
@@ -174,8 +173,8 @@ class CPU:
         elif opcode == "010100": pass # JZ
         elif opcode == "010101": pass # JNZ
         elif opcode == "010110": # LDA
-            LowByte = self.fetch
-            HighByte = self.fetch
+            LowByte = self.fetch()
+            HighByte = self.fetch()
             self.H = int(HighByte, base=2)
             self.L = int(LowByte, base=2)
         elif opcode == "010111": pass # CLF
@@ -203,3 +202,4 @@ cpu = CPU(1/100000)
 program = read("../assembler/output.bin", "rb")
 cpu.load_program(program)
 cpu.run()
+print(f"{format(cpu.H, '08b')} {format(cpu.L, '08b')}")
