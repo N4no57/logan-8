@@ -43,7 +43,7 @@ REGISTERS = {
     'r12': 0xC,
     'r13': 0xD,
     'r14': 0xE,
-    'r15': 0xF,
+    'r15': 0xF
 }
 
 INSTRUCTION_BYTES = {
