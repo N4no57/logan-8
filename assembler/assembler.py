@@ -209,6 +209,17 @@ def assemble(lines):
                 register1 = constants.REGISTERS[operands[0]] << 4
                 register2 = constants.REGISTERS[operands[1]]
                 output.append(register1 + register2)
+        elif instruction == "push":
+            if addressing_mode == "immediate":
+                output.append(int(remove_addressing_identifier(remove_base_identifiers(operands[0])),
+                                  find_base(remove_addressing_identifier(operands[0]))))
+            elif addressing_mode == "register":
+                output.append(constants.REGISTERS[operands[0]] << 4)
+            else:
+                exit("this shouldn't be possible")
+        elif instruction == "pop":
+             if addressing_mode == "register":
+                 pass
         elif instruction == "sw":
             output.extend(data_move_stuff(operands, addressing_mode))
         elif instruction == "lw":
