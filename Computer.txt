@@ -38,10 +38,10 @@
 
 == Addressing Modes ==
 0x02: immediate mode (8 bits) and register mode
-0x03: indirect (H and L) and indexed (H and L + offset)
-0x04: direct (12 bits), indirect (H and L) and indexed (H and L + offset)
-0x05: indirect (SP register)
-0x06: indirect (SP register)
+0x03: direct (16 bits), indirect (H and L) and indexed (H and L + offset)
+0x04: direct (16 bits), indirect (H and L) and indexed (H and L + offset)
+0x05: immediate (8 bits) and register
+0x06: immediate (8 bits) and register
 0x07: direct (4 bits), indirect (specified register from RF) and indexed (specified register from RF + offset)
 0x08: direct (4 bits), indirect (specified register from RF) and indexed (specidied register from RF + offset)
 0x09: immediate (8 bits), register (register from RF)
