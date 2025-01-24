@@ -177,7 +177,6 @@ def assemble(lines):
             first_pass(line)
 
     def data_move_stuff(operands: list, addressing_mode):
-        output = []
         if addressing_mode == "register_indirect":
             output.append(constants.REGISTERS[operands[1]] << 4)
 
@@ -193,7 +192,39 @@ def assemble(lines):
                 output.append(symbol_table[operands[0]] & 0xFF)
                 output.append(symbol_table[operands[0]] >> 8)
                 output.append(constants.REGISTERS[operands[1]] << 4)
-        return output
+
+    def ALU_operand_logic(operands: list, addressing_mode: str):
+        if addressing_mode == "immediate":
+            if operands[0] in symbol_table:
+                output.append(symbol_table[operands[0]])
+                register1 = constants.REGISTERS[operands[1]] << 4
+                register2 = constants.REGISTERS[operands[2]]
+                output.append(register1 + register2)
+            else:
+                output.append(int(remove_addressing_identifier(remove_base_identifiers(operands[0])),
+                                  find_base(remove_addressing_identifier(operands[0]))))
+                register1 = constants.REGISTERS[operands[1]] << 4
+                register2 = constants.REGISTERS[operands[2]]
+                output.append(register1 + register2)
+        elif addressing_mode == "register":
+            register1 = constants.REGISTERS[operands[0]] << 4
+            register2 = constants.REGISTERS[operands[1]]
+            output.append(register1 + register2)
+            output.append(constants.REGISTERS[operands[2]])
+
+    def jump_operand_logic(operands: list, addressing_mode: str):
+        if addressing_mode == "direct" or "indirect":
+            if addressing_mode == "indirect":
+                operands[0] = operands[0].replace("(", "")
+                operands[0] = operands[0].replace(")", "")
+            if operands[0] in symbol_table:
+                output.append(symbol_table[operands[0]] & 0xFF)
+                output.append(symbol_table[operands[0]] >> 8)
+            else:
+                output.append(int(remove_addressing_identifier(remove_base_identifiers(operands[0])),
+                                  find_base(remove_addressing_identifier(operands[0]))) & 0xFF)
+                output.append(int(remove_addressing_identifier(remove_base_identifiers(operands[0])),
+                                  find_base(remove_addressing_identifier(operands[0]))) >> 8)
 
     def parse_operands(instruction, operands, addressing_mode):
         output = []
@@ -215,22 +246,62 @@ def assemble(lines):
                                   find_base(remove_addressing_identifier(operands[0]))))
             elif addressing_mode == "register":
                 output.append(constants.REGISTERS[operands[0]] << 4)
-            else:
-                exit("this shouldn't be possible")
         elif instruction == "pop":
              if addressing_mode == "register":
-                 pass
+                output.append(constants.REGISTERS[operands[0]] << 4)
         elif instruction == "sw":
-            output.extend(data_move_stuff(operands, addressing_mode))
+            data_move_stuff(operands, addressing_mode)
         elif instruction == "lw":
-            output.extend(data_move_stuff(operands, addressing_mode))
-        elif instruction == "jmp":
-            if addressing_mode == "direct":
-                if operands[0] in symbol_table:
-                    output.append(symbol_table[operands[0]] & 0xFF)
-                    output.append(symbol_table[operands[0]] >> 8)
+            data_move_stuff(operands, addressing_mode)
+        elif instruction == "push":
+            if addressing_mode == "immediate":
+                if operands[0] not in symbol_table:
+                    output.append(int(remove_addressing_identifier(remove_base_identifiers(operands[0])),
+                                      find_base(remove_addressing_identifier(operands[0]))))
                 else:
-                    pass
+                    output.append(symbol_table[operands[0]])
+            elif addressing_mode == "register":
+                output.append(constants.REGISTERS[operands[0]] << 4)
+        elif instruction == "pop":
+            output.append(constants.REGISTERS[operands[0]] << 4)
+        elif instruction == "inb":
+            if addressing_mode == "register":
+                output.append(constants.REGISTERS[operands[0]] << 4)
+        elif instruction == "outb":
+            if addressing_mode == "immediate":
+                if operands[0] not in symbol_table:
+                    output.append(int(remove_addressing_identifier(remove_base_identifiers(operands[0])),
+                                      find_base(remove_addressing_identifier(operands[0]))))
+                else:
+                    output.append(symbol_table[operands[0]])
+            elif addressing_mode == "register":
+                output.append(constants.REGISTERS[operands[0]] << 4)
+        elif instruction == "add":
+            ALU_operand_logic(operands, addressing_mode)
+        elif instruction == "adc":
+            ALU_operand_logic(operands, addressing_mode)
+        elif instruction == "sub":
+            ALU_operand_logic(operands, addressing_mode)
+        elif instruction == "sbb":
+            ALU_operand_logic(operands, addressing_mode)
+        elif instruction == "nor":
+            ALU_operand_logic(operands, addressing_mode)
+        elif instruction == "or":
+            ALU_operand_logic(operands, addressing_mode)
+        elif instruction == "and":
+            ALU_operand_logic(operands, addressing_mode)
+        elif instruction == "rsh":
+            ALU_operand_logic(operands, addressing_mode)
+        elif instruction == "jmp":
+            jump_operand_logic(operands, addressing_mode)
+        elif instruction == "jc":
+            jump_operand_logic(operands, addressing_mode)
+        elif instruction == "jnc":
+            jump_operand_logic(operands, addressing_mode)
+        elif instruction == "jz":
+            jump_operand_logic(operands, addressing_mode)
+        elif instruction == "jnz":
+            jump_operand_logic(operands, addressing_mode)
         elif instruction == "lda": # load address
             if addressing_mode == "immediate":
                 if operands[0] in symbol_table:
@@ -264,7 +335,7 @@ def assemble(lines):
             current_address = pass_directives(tokens, current_address)
 
         elif tokens[0] in macros:
-            pass_macro_expansion(tokens[0], tokens[1:x])
+            pass_macro_expansion(tokens[0], tokens[1:])
 
         else:
             instruction = tokens[0]
