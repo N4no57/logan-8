@@ -11,6 +11,9 @@ def tokenise(line):
 def assemble(lines):
     symbol_table = {}
     macros = {}
+    segments = {}
+    current_segment = None
+    address_counters = {}
     output = []
     current_address = 0
     macro_mode = False
@@ -94,6 +97,9 @@ def assemble(lines):
                 output.append(fill_value & 0xFF)
                 current_address += 1
 
+        elif tokens[0] == ".segment":
+            pass
+
         elif tokens[0] in [".byte", ".db"]:
             # Insert byte values
             for value in tokens[1:]:
@@ -142,6 +148,11 @@ def assemble(lines):
             end_address = int(remove_base_identifiers(tokens[1]), find_base(tokens[1]))
             while current_address <= end_address:
                 current_address += 1
+
+        elif tokens[0] == ".segment":
+            if tokens[1] not in segments:
+                segments[tokens[1]] = []
+                address_counters[tokens[1]] = 0
 
         elif tokens[0] in [".byte", ".db"]:
             for _ in tokens[1:]:
@@ -410,21 +421,26 @@ def read_file(filename):
         output.extend(f.readlines())
     return output
 
-def write_file(filename, content, mode):
-    with open(filename, mode) as f:
-        if mode == "wb":
-            for number in content:
-                f.write(number.to_bytes(1, byteorder='big'))
-        elif mode == "w":
-            for number in content:
-                f.write(" ")
-                f.write(format(number, "08b"))
+def write_file(filename, segments, symbol_table, assembler_output):
+    with open(filename, "wb") as f:
+        # create header
+        f.write("Header".encode("utf-8"))
+        f.write(constants.MAGIC_NUMBER.to_bytes(length=4, byteorder="big"))
+        f.write(0x0.to_bytes(length=3, byteorder="big"))
+        f.write("end".encode("utf-8"))
+
+        for number in assembler_output:
+            f.write(number.to_bytes(1, byteorder='big'))
+
+        for item in symbol_table:
+            f.write(item.encode("utf-8"))
+            f.write(symbol_table[item].to_bytes(1, byteorder='big'))
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         exit(f"Usage: assembler.py <filename> [output]")
 
-    output_filename = "output.bin"
+    output_filename = "output.o"
     if len(sys.argv) == 3:
         output_filename = sys.argv[2]
 
@@ -435,5 +451,5 @@ if __name__ == '__main__':
     while len(output) > 65535:
         output.pop()
 
-    write_file(output_filename, output, mode="wb")
+    write_file(output_filename, {}, symbol_table, output)
 

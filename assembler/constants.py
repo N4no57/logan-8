@@ -103,3 +103,5 @@ ADDRESSING_MODE_BITS = {
     'sie'   : {'none': 0b00},
     'cie'   : {'none': 0b00}
 }
+
+MAGIC_NUMBER = 0xCAFEBABE
