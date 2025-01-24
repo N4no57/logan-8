@@ -228,7 +228,7 @@ def assemble(lines):
 
     def parse_operands(instruction, operands, addressing_mode):
         output = []
-        if instruction in ['nop', 'hlt']:
+        if instruction in ['nop', 'hlt', 'clf', 'sie', 'cie']:
             return None
 
         if instruction == "mw":
